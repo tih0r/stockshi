@@ -9,7 +9,9 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 import warnings
 import time
+
 warnings.filterwarnings('ignore')
+
 st.set_page_config(page_title="Stock predictor and analysis", page_icon="📈", layout="wide")
 st.title("Stock predictor and analysis")
 
@@ -18,11 +20,13 @@ ticker = st.sidebar.text_input("Stock Ticker", value="TCS.NS")
 start_date = st.sidebar.date_input("Start Date", value=datetime.now() - timedelta(days=730), max_value=datetime.now())
 end_date = st.sidebar.date_input("End Date", value=datetime.now(), max_value=datetime.now())
 pred_days = st.sidebar.slider("Days to Predict", 1, 30, 7)
+
 refresh_interval = 30
 
 def create_features(df):
     if df is None or df.empty:
         return df
+    
     df = df.copy()
     df['Log_Ret'] = np.log(df['Close'] / df['Close'].shift(1))
     
@@ -120,7 +124,7 @@ if 'last_update' not in st.session_state:
 if 'running' not in st.session_state:
     st.session_state.running = False
 
-run_analysis = st.sidebar.button("Start Analysis & Live Tracking", type="primary")
+run_analysis = st.sidebar.button("🚀 Start Analysis & Live Tracking", type="primary")
 
 if run_analysis:
     st.session_state.running = True
@@ -130,15 +134,19 @@ main_layout = st.empty()
 if st.session_state.running:
     try:
         with main_layout.container():
-            st.success(f"LIVE MODE - Auto-refreshing every 30s | Last update: {datetime.now().strftime('%H:%M:%S')}")
+            st.success(f"🔴 LIVE MODE - Auto-refreshing every 30s | Last update: {datetime.now().strftime('%H:%M:%S')}")
+            
             with st.spinner(f"Fetching data for {ticker}..."):
                 info, hist = get_data(ticker, start_date, end_date)
                 live_data = get_live_data(ticker)
+                
                 if hist.empty:
                     st.error(f"No data found for {ticker}. Check the symbol or date range.")
                 else:
                     processed_data = create_features(hist)
-                    st.header(f"{ticker} - Live Dashboard")
+
+                    st.header(f"📊 {ticker} - Live Dashboard")
+                    
                     if not live_data.empty:
                         current_price = live_data['Close'].iloc[-1]
                         prev_close = info.get('previousClose', live_data['Close'].iloc[0])
@@ -149,9 +157,12 @@ if st.session_state.running:
                         prev_close = info.get('previousClose', hist['Close'].iloc[-2])
                         day_change = 0
                         day_change_pct = 0
+                    
                     cols = st.columns(6)
+                    
                     def safe_format(val, prefix="", suffix=""):
                         return f"{prefix}{val}{suffix}" if val is not None and val != 'N/A' else "N/A"
+
                     cols[0].metric("Current Price", f"₹{current_price:,.2f}" if isinstance(current_price, (int, float)) else current_price, 
                                   f"{day_change:+.2f} ({day_change_pct:+.2f}%)")
                     cols[1].metric("High", safe_format(info.get('dayHigh'), "₹"))
@@ -160,16 +171,20 @@ if st.session_state.running:
                     cols[4].metric("Prev Close", f"₹{prev_close}" if isinstance(prev_close, (int, float)) else prev_close)
                     mkt_cap = info.get('marketCap')
                     cols[5].metric("Market Cap", f"₹{mkt_cap/1e9:.2f}B" if mkt_cap else 'N/A')
+                    
                     st.markdown("---")
+                    
                     graph_option = st.radio(
                         "Select Graph to Display:",
-                        ["Live Intraday", " Historical Price", " RSI Indicator", " Price Prediction"],
+                        ["📊 Live Intraday", "📉 Historical Price", "📈 RSI Indicator", "🔮 Price Prediction"],
                         index=0,
                         horizontal=True,
                         key="graph_selector_live"
                     )
+                    
                     st.markdown("---")
-                    if graph_option == "Live Intraday":
+                    
+                    if graph_option == "📊 Live Intraday":
                         if not live_data.empty and len(live_data) > 1:
                             st.subheader("Today's Intraday Movement (Candlestick)")
                             fig_live = go.Figure()
@@ -179,14 +194,26 @@ if st.session_state.running:
                                 low=live_data['Low'], close=live_data['Close'],
                                 name='Price'
                             ))
+                            
                             min_time = live_data.index.min()
                             max_time = live_data.index.max()
                             range_padding = timedelta(minutes=5)
-                            fig_live.update_layout(height=500, template='plotly_dark', title=f"{ticker} Intraday", xaxis_rangeslider_visible=False)
+                            
+                            fig_live.update_layout(
+                                height=500, 
+                                template='plotly_dark', 
+                                title=f"{ticker} Intraday", 
+                                xaxis_rangeslider_visible=False,
+                                xaxis=dict(
+                                    range=[min_time - range_padding, max_time + range_padding],
+                                    type="date"
+                                )
+                            )
                             st.plotly_chart(fig_live, width="stretch")
                         else:
                             st.info("Live intraday data not available.")
-                    elif graph_option == " Historical Price":
+                    
+                    elif graph_option == "📉 Historical Price":
                         st.subheader("Historical Price Analysis")
                         fig_hist = go.Figure()
                         fig_hist.add_trace(go.Scatter(x=hist.index, y=hist['Close'], name='Close', line=dict(color='#1f77b4')))
@@ -195,7 +222,7 @@ if st.session_state.running:
                         fig_hist.update_layout(height=600, title=f"{ticker} Historical Trend")
                         st.plotly_chart(fig_hist, width="stretch")
                     
-                    elif graph_option == "RSI Indicator":
+                    elif graph_option == "📈 RSI Indicator":
                         st.subheader("RSI (Relative Strength Index)")
                         fig_rsi = go.Figure()
                         fig_rsi.add_trace(go.Scatter(x=processed_data.index, y=processed_data['RSI'], name='RSI', line=dict(color='#9467bd')))
@@ -203,8 +230,8 @@ if st.session_state.running:
                         fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
                         fig_rsi.update_layout(height=500, title=f"{ticker} RSI", yaxis=dict(range=[0, 100]))
                         st.plotly_chart(fig_rsi, width="stretch")
-                        
-                    elif graph_option == "Price Prediction":
+                    
+                    elif graph_option == "🔮 Price Prediction":
                         st.subheader(f"XGBoost AI Prediction ({pred_days} Days)")
                         if len(processed_data) < 60:
                             st.error("Not enough data to generate predictions.")
@@ -212,8 +239,10 @@ if st.session_state.running:
                             predictions, score = predict_prices(processed_data, pred_days)
                             cols = st.columns(2)
                             cols[0].metric("Model Confidence (R²)", f"{score:.4f}")
+                            
                             last_date = hist.index[-1]
                             future_dates = pd.bdate_range(start=last_date + timedelta(1), periods=pred_days)
+                            
                             fig_pred = go.Figure()
                             recent = hist.tail(90)
                             fig_pred.add_trace(go.Scatter(x=recent.index, y=recent['Close'], name='Historical', line=dict(color='#1f77b4', width=2)))
@@ -226,9 +255,9 @@ if st.session_state.running:
                             chg = ((final_pred - current_close) / current_close) * 100
                             
                             if chg > 0:
-                                st.success(f"Bullish: Model predicts price will move to **₹{final_pred:.2f}** ({chg:+.2f}%)")
+                                st.success(f"📈 Bullish: Model predicts price will move to **₹{final_pred:.2f}** ({chg:+.2f}%)")
                             else:
-                                st.error(f"Bearish: Model predicts price will move to **₹{final_pred:.2f}** ({chg:+.2f}%)")
+                                st.error(f"📉 Bearish: Model predicts price will move to **₹{final_pred:.2f}** ({chg:+.2f}%)")
 
         time.sleep(refresh_interval)
         st.rerun()
@@ -237,9 +266,10 @@ if st.session_state.running:
         st.error(f"An error occurred: {e}")
         time.sleep(refresh_interval)
         st.rerun()
+
 else:
     with main_layout.container():
-        st.info(" Enter a Stock Ticker (e.g., TCS.NS) and click 'Start Analysis'")
+        st.info("👈 Enter a Stock Ticker (e.g., TCS.NS) and click 'Start Analysis'")
         
         st.markdown("""
         ###Live Tracking:
