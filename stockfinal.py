@@ -179,6 +179,9 @@ if st.session_state.running:
                                 low=live_data['Low'], close=live_data['Close'],
                                 name='Price'
                             ))
+                            min_time = live_data.index.min()
+                            max_time = live_data.index.max()
+                            range_padding = timedelta(minutes=5)
                             fig_live.update_layout(height=500, template='plotly_dark', title=f"{ticker} Intraday", xaxis_rangeslider_visible=False)
                             st.plotly_chart(fig_live, width="stretch")
                         else:
